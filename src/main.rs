@@ -1,6 +1,6 @@
-use std::{collections::HashMap, fs, ops::Index};
+use std::{collections::HashMap, fs};
 
-fn puzzle1() {
+fn puzzle1() -> u32 {
     let number_names: HashMap<&str, char> = HashMap::from([
         ("one", '1'),
         ("two", '2'),
@@ -17,17 +17,58 @@ fn puzzle1() {
     let answer: u32 = file
         .lines()
         .map(|l| {
-            let first_digit = l.chars().find(|c| c.is_numeric()).unwrap();
-            let last_digit = l.chars().rfind(|c| c.is_numeric()).unwrap();
-            format!("{}{}", first_digit, last_digit)
+            // find first number
+            let first_digit_position = l.chars().position(|c| c.is_numeric()).unwrap();
+            let first_word_position = number_names
+                .iter()
+                .filter_map(|(word, num)| l.find(word).map(|idx| (idx, num)))
+                .min_by(|a, b| a.0.cmp(&b.0));
 
-            // find first number, then find first word. compare indices. pick smaller one.
+            let first_digit = match first_word_position {
+                Some((word_position, char)) => {
+                    if first_digit_position < word_position {
+                        l.chars().nth(first_digit_position).unwrap()
+                    } else {
+                        *char
+                    }
+                }
+                None => l.chars().nth(first_digit_position).unwrap(),
+            };
+
+            // find last number
+            let last_digit_position = l.chars().rev().position(|c| c.is_numeric()).unwrap();
+            let last_word_position = number_names
+                .iter()
+                .filter_map(|(word, num)| l.rfind(word).map(|idx| (idx, num)))
+                .max_by(|a, b| a.0.cmp(&b.0));
+
+            let last_digit = match last_word_position {
+                Some((word_position, char)) => {
+                    if (l.len()-last_digit_position-1) > word_position {
+                        l.chars().nth_back(last_digit_position).unwrap()
+                    } else {
+                        *char
+                    }
+                }
+                None => l.chars().nth_back(last_digit_position).unwrap(),
+            };
+
+            println!("-----------");
+            println!("Line: {}", l);
+            println!("Digit: {}{}", first_digit, last_digit);
+            println!("First digit position: {}", first_digit_position);
+            println!("First word position: {:?}", first_word_position);
+            println!("Last digit position: {}", last_digit_position);
+            println!("Last word position: {:?}", last_word_position);
+
+            format!("{}{}", first_digit, last_digit)
         })
         .map(|n| n.parse::<u32>().unwrap())
         .sum();
-    println!("{answer}")
+    answer
 }
 
 fn main() {
-    puzzle1()
+    let answer = puzzle1();
+    println!("{answer}")
 }
