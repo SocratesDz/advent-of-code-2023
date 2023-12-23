@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fs};
 
 use regex::Regex;
 
@@ -25,9 +25,10 @@ impl TryFrom<&str> for CubeColor {
     }
 }
 
+#[derive(Debug)]
 pub struct Game {
-    id: i32,
-    cubes: HashMap<CubeColor, i32>,
+    pub id: i32,
+    pub cubes: HashMap<CubeColor, i32>,
 }
 
 #[derive(Debug)]
@@ -94,6 +95,30 @@ impl TryFrom<&str> for Game {
             cubes: parsed_cube_sets,
         })
     }
+}
+
+/**
+ * The answer for the puzzle 2 is built by using sets of hashmaps. And checking each set to see if it's valid. */
+pub fn answer() -> i32 {
+    let max_red_cubes = 12;
+    let max_green_cubes = 13;
+    let max_blue_cubes = 14;
+
+    let input = fs::read_to_string("puzzle2.txt").expect("File not found");
+    let games = input.lines().map(|l| Game::try_from(l).unwrap()).collect::<Vec<Game>>();
+
+    let sum_of_games = games.iter().filter(|game| {
+        let red_cubes = *game.cubes.get(&CubeColor::Red).unwrap_or(&0);
+        let green_cubes = *game.cubes.get(&CubeColor::Green).unwrap_or(&0);
+        let blue_cubes = *game.cubes.get(&CubeColor::Blue).unwrap_or(&0);
+
+        red_cubes <= max_red_cubes && green_cubes <= max_green_cubes && blue_cubes <= max_blue_cubes
+    }).map(|g| {
+        println!("{:?}", g);
+        g.id
+    }).sum();
+
+    sum_of_games
 }
 
 #[cfg(test)]
