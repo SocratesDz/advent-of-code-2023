@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use regex::Regex;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy, Eq, Hash)]
 pub enum CubeColor {
     Red,
     Green,
@@ -30,6 +30,7 @@ pub struct Game {
     cubes: HashMap<CubeColor, i32>,
 }
 
+#[derive(Debug)]
 pub struct GameParseInputError;
 
 impl TryFrom<&str> for Game {
@@ -40,38 +41,63 @@ impl TryFrom<&str> for Game {
         let cube_regex = Regex::new(r"(\d+)\s(\w+)").unwrap();
         let (game_str, cube_set_str) = value.split_once(':').unzip();
 
-        let game_id = game_str
+        let Some(game_id) = game_str
             .and_then(|s| game_regex.captures(s))
-            .and_then(|capture| capture.get(1).and_then(|r| Some(r.as_str())));
+            .and_then(|capture| capture.get(1).map(|r| r.as_str()))
+            .map(|id| id.parse::<i32>().expect("Error parsing game id"))
+        else {
+            return Err(GameParseInputError);
+        };
 
-        let cubes = cube_set_str
-            .map(|str| str.split(','))
-            .map(|split| split.map(|s| s.trim()))
-            .map(|m| {
-                m.map(|s| {
-                    let cubes = cube_regex.captures(s);
-                    let Some((Some(amount), Some(color))) =
-                        cubes.map(|c| (c.get(1), c.get(2))).map(|(amount, color)| {
-                            (amount.map(|a| a.as_str()), color.map(|c| c.as_str()))
-                        }) else { panic!("Parse Input Error"); };
-                    (amount, CubeColor::try_from(color).unwrap())
-                })
-            });
-        // .and_then(f)
-        // .split(';')
-        // .flat_map(|set| set.split(','))
-        // .and_then(|s| cube_regex.captures(';'));
+        let Some(cubes_str) = cube_set_str
+            .map(|str| str.split(';').flat_map(|s| s.split(',')))
+            .map(|split| split.map(|s| s.trim()).collect::<Vec<&str>>())
+        else {
+            return Err(GameParseInputError);
+        };
 
-        Err(GameParseInputError)
+        let cube_amounts = cubes_str
+            .iter()
+            .map(|&c| {
+                let match_results = cube_regex.captures(c);
+                let result = match_results
+                    .map(|c| c.get(2).zip(c.get(1)))
+                    .map(|pair| pair.map(|(color, amount)| (color.as_str(), amount.as_str())))
+                    .flatten()
+                    .map(|(color, amount)| {
+                        (
+                            CubeColor::try_from(color)
+                                .map_err(|_| GameParseInputError)
+                                .expect("Error parsing cube color"),
+                            amount
+                                .parse::<i32>()
+                                .map_err(|_| GameParseInputError)
+                                .expect("Error parsing cube amount"),
+                        )
+                    });
+                result.expect("Error parsing game")
+            })
+            .collect::<Vec<(CubeColor, i32)>>();
+
+        let mut parsed_cube_sets: HashMap<CubeColor, i32> = HashMap::new();
+        for (color, amount) in cube_amounts {
+            if parsed_cube_sets.contains_key(&color) {
+                if let Some(value) = parsed_cube_sets.get_mut(&color) {
+                    *value += amount;
+                }
+            } else {
+                parsed_cube_sets.insert(color, amount);
+            }
+        }
+        Ok(Game {
+            id: game_id,
+            cubes: parsed_cube_sets,
+        })
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-
-    use regex::Regex;
-
     use crate::puzzle2::Game;
 
     use super::CubeColor;
@@ -79,37 +105,12 @@ mod tests {
     #[test]
     fn parse_game_struct() {
         let input = "Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green";
-        let game_cubes = input.split_once(':').unwrap();
-        let regex_game_match = Regex::new(r"^Game (\d+)$").unwrap();
-        let captures = regex_game_match.captures(game_cubes.0).unwrap();
+        let game = Game::try_from(input).unwrap();
 
-        let game_id = captures.get(1).unwrap().as_str();
-        assert!(game_id == "1");
-
-        let game = Game {
-            id: 0,
-            cubes: HashMap::new(),
-        };
-
-        let regex_cubes_match = Regex::new(r"(\d+)\s(\w+)").unwrap();
-
-        let cube_amounts: Vec<(i32, CubeColor)> = game_cubes
-            .1
-            .split(';')
-            .flat_map(|set| set.split(','))
-            .map(|s| s.trim())
-            .map(|s| {
-                let cubes = regex_cubes_match.captures(s).unwrap();
-                let amount = cubes.get(1).unwrap().as_str().parse::<i32>().unwrap();
-                let color = cubes.get(2).unwrap().as_str();
-                (amount, CubeColor::try_from(color).unwrap())
-            })
-            .collect();
-
-        assert!(cube_amounts[0] == (3, CubeColor::Blue));
-        assert!(cube_amounts[1] == (4, CubeColor::Red));
-        assert!(cube_amounts[2] == (1, CubeColor::Red));
-        assert!(cube_amounts[3] == (2, CubeColor::Green));
+        assert!(game.id == 1);
+        assert!(game.cubes.get(&CubeColor::Blue) == Some(&9));
+        assert!(game.cubes.get(&CubeColor::Red) == Some(&5));
+        assert!(game.cubes.get(&CubeColor::Green) == Some(&4));
     }
 
     #[test]
