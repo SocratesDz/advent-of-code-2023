@@ -28,7 +28,7 @@ impl TryFrom<&str> for CubeColor {
 #[derive(Debug)]
 pub struct Game {
     pub id: i32,
-    pub cubes: HashMap<CubeColor, i32>,
+    pub cubes: Vec<HashMap<CubeColor, i32>>,
 }
 
 #[derive(Debug)]
@@ -50,75 +50,122 @@ impl TryFrom<&str> for Game {
             return Err(GameParseInputError);
         };
 
-        let Some(cubes_str) = cube_set_str
-            .map(|str| str.split(';').flat_map(|s| s.split(',')))
-            .map(|split| split.map(|s| s.trim()).collect::<Vec<&str>>())
-        else {
+        let Some(cubes_str) = cube_set_str.map(|str| {
+            str.split(';')
+                .map(|s| s.split(',').collect::<Vec<&str>>())
+                .collect::<Vec<Vec<&str>>>()
+        }) else {
             return Err(GameParseInputError);
         };
 
         let cube_amounts = cubes_str
             .iter()
-            .map(|&c| {
-                let match_results = cube_regex.captures(c);
-                let result = match_results
-                    .map(|c| c.get(2).zip(c.get(1)))
-                    .map(|pair| pair.map(|(color, amount)| (color.as_str(), amount.as_str())))
-                    .flatten()
-                    .map(|(color, amount)| {
-                        (
-                            CubeColor::try_from(color)
-                                .map_err(|_| GameParseInputError)
-                                .expect("Error parsing cube color"),
-                            amount
-                                .parse::<i32>()
-                                .map_err(|_| GameParseInputError)
-                                .expect("Error parsing cube amount"),
-                        )
-                    });
-                result.expect("Error parsing game")
-            })
-            .collect::<Vec<(CubeColor, i32)>>();
+            .map(|record| {
+                let parsed_sets = record
+                    .iter()
+                    .map(|set| {
+                        let match_results = cube_regex.captures(set);
+                        let result = match_results
+                            .map(|captures| captures.get(2).zip(captures.get(1)))
+                            .and_then(|pair| {
+                                pair.map(|(color, amount)| (color.as_str(), amount.as_str()))
+                            })
+                            .map(|(color, amount)| {
+                                (
+                                    CubeColor::try_from(color)
+                                        .map_err(|_| GameParseInputError)
+                                        .expect("Error parsing cube color"),
+                                    amount
+                                        .parse::<i32>()
+                                        .map_err(|_| GameParseInputError)
+                                        .expect("Error parsing cube amount"),
+                                )
+                            });
+                        result.expect("Error parsing game")
+                    })
+                    .collect::<Vec<(CubeColor, i32)>>();
 
-        let mut parsed_cube_sets: HashMap<CubeColor, i32> = HashMap::new();
-        for (color, amount) in cube_amounts {
-            if parsed_cube_sets.contains_key(&color) {
-                if let Some(value) = parsed_cube_sets.get_mut(&color) {
-                    *value += amount;
-                }
-            } else {
-                parsed_cube_sets.insert(color, amount);
-            }
-        }
+                let mut map_set = HashMap::<CubeColor, i32>::new();
+
+                parsed_sets.iter().for_each(|set| {
+                    map_set.insert(set.0, set.1);
+                });
+                map_set
+            })
+            .collect::<Vec<HashMap<CubeColor, i32>>>();
+
         Ok(Game {
             id: game_id,
-            cubes: parsed_cube_sets,
+            cubes: cube_amounts,
         })
     }
 }
 
-/**
- * The answer for the puzzle 2 is built by using sets of hashmaps. And checking each set to see if it's valid. */
-pub fn answer() -> i32 {
+impl Game {
+    pub fn power(&self) -> i32 {
+        let minimum_red = self
+            .cubes
+            .iter()
+            .max_by(|a, b| {
+                a.get(&CubeColor::Red)
+                    .unwrap_or(&0)
+                    .cmp(b.get(&CubeColor::Red).unwrap_or(&0))
+            })
+            .and_then(|cube| cube.get(&CubeColor::Red))
+            .unwrap_or(&1);
+
+        let minimum_green = self
+            .cubes
+            .iter()
+            .max_by(|a, b| {
+                a.get(&CubeColor::Green)
+                    .unwrap_or(&0)
+                    .cmp(b.get(&CubeColor::Green).unwrap_or(&0))
+            })
+            .and_then(|cube| cube.get(&CubeColor::Green))
+            .unwrap_or(&1);
+
+        let minimum_blue = self
+            .cubes
+            .iter()
+            .max_by(|a, b| {
+                a.get(&CubeColor::Blue)
+                    .unwrap_or(&0)
+                    .cmp(b.get(&CubeColor::Blue).unwrap_or(&0))
+            })
+            .and_then(|cube| cube.get(&CubeColor::Blue))
+            .unwrap_or(&1);
+
+        minimum_red * minimum_green * minimum_blue
+    }
+}
+
+pub fn answer() -> (i32, i32) {
     let max_red_cubes = 12;
     let max_green_cubes = 13;
     let max_blue_cubes = 14;
 
     let input = fs::read_to_string("puzzle2.txt").expect("File not found");
-    let games = input.lines().map(|l| Game::try_from(l).unwrap()).collect::<Vec<Game>>();
+    let games = input
+        .lines()
+        .map(|l| Game::try_from(l).unwrap())
+        .collect::<Vec<Game>>();
 
-    let sum_of_games = games.iter().filter(|game| {
-        let red_cubes = *game.cubes.get(&CubeColor::Red).unwrap_or(&0);
-        let green_cubes = *game.cubes.get(&CubeColor::Green).unwrap_or(&0);
-        let blue_cubes = *game.cubes.get(&CubeColor::Blue).unwrap_or(&0);
+    let sum_of_games: i32 = games
+        .iter()
+        .filter(|game| {
+            game.cubes.iter().all(|set| {
+                set.get(&CubeColor::Red) <= Some(&max_red_cubes)
+                    && set.get(&CubeColor::Green) <= Some(&max_green_cubes)
+                    && set.get(&CubeColor::Blue) <= Some(&max_blue_cubes)
+            })
+        })
+        .map(|game| game.id)
+        .sum();
 
-        red_cubes <= max_red_cubes && green_cubes <= max_green_cubes && blue_cubes <= max_blue_cubes
-    }).map(|g| {
-        println!("{:?}", g);
-        g.id
-    }).sum();
+    let power_of_games = games.iter().map(|game| game.power()).sum();
 
-    sum_of_games
+    (sum_of_games, power_of_games)
 }
 
 #[cfg(test)]
@@ -127,15 +174,21 @@ mod tests {
 
     use super::CubeColor;
 
+    const TEST_INPUT: &str = "Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green";
+
     #[test]
     fn parse_game_struct() {
-        let input = "Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green";
-        let game = Game::try_from(input).unwrap();
+        let game = Game::try_from(TEST_INPUT).unwrap();
 
         assert!(game.id == 1);
-        assert!(game.cubes.get(&CubeColor::Blue) == Some(&9));
-        assert!(game.cubes.get(&CubeColor::Red) == Some(&5));
-        assert!(game.cubes.get(&CubeColor::Green) == Some(&4));
+        assert!(game.cubes[0].get(&CubeColor::Blue) == Some(&3));
+        assert!(game.cubes[0].get(&CubeColor::Red) == Some(&4));
+
+        assert!(game.cubes[1].get(&CubeColor::Red) == Some(&1));
+        assert!(game.cubes[1].get(&CubeColor::Green) == Some(&2));
+        assert!(game.cubes[1].get(&CubeColor::Blue) == Some(&6));
+
+        assert!(game.cubes[2].get(&CubeColor::Green) == Some(&2));
     }
 
     #[test]
@@ -150,5 +203,12 @@ mod tests {
         let wrong_cube_color = CubeColor::try_from(wrong_color_str);
 
         assert!(wrong_cube_color.is_err())
+    }
+
+    #[test]
+    fn test_game_power() {
+        let game = Game::try_from(TEST_INPUT).unwrap();
+
+        assert!(game.power() == 48)
     }
 }
