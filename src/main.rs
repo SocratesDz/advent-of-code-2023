@@ -1,5 +1,6 @@
 mod puzzle1;
 mod puzzle2;
+mod puzzle3;
 
 fn main() {
     let answer1 = puzzle1::answer();
