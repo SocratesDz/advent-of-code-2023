@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use regex::{CaptureLocations, Regex, CaptureMatches, Captures};
+    use regex::{CaptureLocations, Regex, CaptureMatches, Captures, Match};
 
     #[test]
     fn test_puzzle() {
@@ -30,11 +30,20 @@ mod tests {
         dbg!(digit_capture_slices);
 
         // Get every symbol
-        let symbol_regex = Regex::new(r"([^\.\d\w\s])+").unwrap();
+        let symbol_regex = Regex::new(r"([^\.\d\w\s])++").unwrap();
         let symbols_capture = input
             .lines()
-            .map(|line| symbol_regex.captures(line))
-            .collect::<Vec<Option<Captures>>>();
+            .enumerate()
+            .map(|(idx, line)| (idx, symbol_regex.captures_iter(line).collect::<Vec<Captures>>()))
+            .collect::<Vec<(usize, Vec<Captures>)>>();
         dbg!(symbols_capture);
+
+        // for (idx, symbols) in symbols_capture
+        // / for capture in symbols:
+        // // let capture_index = capture.1.slice_start;
+        // // check rows capture_index-1 and capture_index+1;
+        // // check columns idx-1..idx+1;
+        // // 
+
     }
 }
