@@ -1,8 +1,7 @@
-use std::{fs, collections::HashMap};
+use std::{collections::HashMap, fs};
 
 pub fn get_input() -> String {
-    let file = fs::read_to_string("puzzle1.txt").expect("File not found.");
-    file
+    fs::read_to_string("puzzle1.txt").expect("File not found.")
 }
 
 pub fn answer() -> u32 {
