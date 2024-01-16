@@ -1,6 +1,15 @@
+pub struct DigitCapture {
+    pub row: usize,
+    pub column_range: (usize, usize),
+    pub text: String,
+    pub value: u32
+}
+
 #[cfg(test)]
 mod tests {
     use regex::{CaptureLocations, CaptureMatches, Captures, Match, Regex};
+
+    use crate::puzzle3::DigitCapture;
 
     #[test]
     fn test_puzzle() {
@@ -29,6 +38,17 @@ mod tests {
             })
             .collect::<Vec<(usize, Vec<Captures>)>>();
         dbg!(&digit_capture_slices);
+
+        let digit_captures = digit_capture_slices.iter().map(|(row, captures)| {
+            let numbers = captures.iter().map(|capture| {
+                let regex_match = capture.get(1).unwrap();
+                let text = regex_match.as_str().to_string();
+                let column_range = (regex_match.range().start, regex_match.range().end);
+                let value = text.parse::<u32>().unwrap();
+
+                DigitCapture { row: *row, column_range, text, value }
+            });
+        });
 
         // Get every symbol
         let symbol_regex = Regex::new(r"([^\.\d\w\s])++").unwrap();
