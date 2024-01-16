@@ -1,9 +1,17 @@
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DigitCapture {
-    pub row: usize,
-    pub column_range: (usize, usize),
+    pub row: isize,
+    pub column_range: (isize, isize),
     pub text: String,
     pub value: u32,
+}
+
+impl DigitCapture {
+    fn is_adjacent(&self, (row, column): (isize, isize)) -> bool {
+        let row_range = (self.row - 1)..(self.row + 2);
+        let column_range = (self.column_range.0 - 1)..(self.column_range.1 + 2);
+        row_range.contains(&row) && column_range.contains(&column)
+    }
 }
 
 #[derive(Debug)]
@@ -14,7 +22,9 @@ pub struct SymbolCapture {
 
 #[cfg(test)]
 mod tests {
-    use regex::{Captures, Regex};
+    use std::collections::HashSet;
+
+    use regex::Regex;
 
     use crate::puzzle3::{DigitCapture, SymbolCapture};
 
@@ -37,26 +47,23 @@ mod tests {
         let digit_captures: Vec<DigitCapture> = input
             .lines()
             .enumerate()
-            .map(|(idx, line)| {
-                (
-                    idx,
-                    number_regex.captures_iter(line),
-                )
-            })
+            .map(|(idx, line)| (idx, number_regex.captures_iter(line)))
             .flat_map(|(row, captures)| {
-                captures
-                    .map(move |capture| {
-                        let regex_match = capture.get(1).unwrap();
-                        let text = regex_match.as_str().to_string();
-                        let column_range = (regex_match.range().start, regex_match.range().end - 1);
-                        let value = text.parse::<u32>().unwrap();
-                        DigitCapture {
-                            row: row,
-                            column_range,
-                            text,
-                            value,
-                        }
-                    })
+                captures.map(move |capture| {
+                    let regex_match = capture.get(1).unwrap();
+                    let text = regex_match.as_str().to_string();
+                    let column_range = (
+                        regex_match.range().start as isize,
+                        regex_match.range().end as isize - 1,
+                    );
+                    let value = text.parse::<u32>().unwrap();
+                    DigitCapture {
+                        row: row as isize,
+                        column_range,
+                        text,
+                        value,
+                    }
+                })
             })
             .collect();
 
@@ -64,25 +71,38 @@ mod tests {
 
         // Get every symbol
         let symbol_regex = Regex::new(r"([^\.\d\w\s])++").unwrap();
-        let symbols_capture: Vec<SymbolCapture> = input
+        let symbol_captures: Vec<SymbolCapture> = input
             .lines()
             .enumerate()
-            .map(|(idx, line)| {
-                (
-                    idx,
-                    symbol_regex.captures_iter(line),
-                )
-            })
+            .map(|(idx, line)| (idx, symbol_regex.captures_iter(line)))
             .flat_map(|(row, captures)| {
-                captures
-                    .map(move |capture| {
-                        let regex_match = capture.get(1).unwrap();
-                        let column = regex_match.range().start;
-                        SymbolCapture { row, column }
-                    })
+                captures.map(move |capture| {
+                    let regex_match = capture.get(1).unwrap();
+                    let column = regex_match.range().start;
+                    SymbolCapture { row, column }
+                })
             })
             .collect();
 
-        dbg!(&symbols_capture);
+        dbg!(&symbol_captures);
+
+        let mut number_matches: HashSet<&DigitCapture> = HashSet::new();
+
+        for symbol in symbol_captures {
+            digit_captures
+                .iter()
+                .filter(|number| number.is_adjacent((symbol.row as isize, symbol.column as isize)))
+                .for_each(|number| {
+                    number_matches.insert(number);
+                });
+        }
+
+        dbg!(&number_matches);
+
+        let answer: u32 = number_matches
+            .iter()
+            .fold(0, |acc, number| acc + &number.value);
+
+        dbg!(answer);
     }
 }
