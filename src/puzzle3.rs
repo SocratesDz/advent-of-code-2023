@@ -34,20 +34,18 @@ mod tests {
 
         // Get number locations with slices
         let number_regex = Regex::new(r"(\d+)").unwrap();
-
         let digit_captures: Vec<DigitCapture> = input
             .lines()
             .enumerate()
             .map(|(idx, line)| {
                 (
                     idx,
-                    number_regex.captures_iter(line).collect::<Vec<Captures>>(),
+                    number_regex.captures_iter(line),
                 )
             })
             .flat_map(|(row, captures)| {
                 captures
-                    .iter()
-                    .map(|capture| {
+                    .map(move |capture| {
                         let regex_match = capture.get(1).unwrap();
                         let text = regex_match.as_str().to_string();
                         let column_range = (regex_match.range().start, regex_match.range().end - 1);
@@ -59,7 +57,6 @@ mod tests {
                             value,
                         }
                     })
-                    .collect::<Vec<DigitCapture>>()
             })
             .collect();
 
@@ -73,20 +70,19 @@ mod tests {
             .map(|(idx, line)| {
                 (
                     idx,
-                    symbol_regex.captures_iter(line).collect::<Vec<Captures>>(),
+                    symbol_regex.captures_iter(line),
                 )
             })
             .flat_map(|(row, captures)| {
                 captures
-                    .iter()
-                    .map(|capture| {
+                    .map(move |capture| {
                         let regex_match = capture.get(1).unwrap();
                         let column = regex_match.range().start;
                         SymbolCapture { row, column }
                     })
-                    .collect::<Vec<SymbolCapture>>()
             })
             .collect();
+
         dbg!(&symbols_capture);
     }
 }
