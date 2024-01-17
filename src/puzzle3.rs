@@ -1,7 +1,11 @@
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+use std::{collections::HashSet, fs, ops::Range};
+
+use regex::Regex;
+
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct DigitCapture {
     pub row: isize,
-    pub column_range: (isize, isize),
+    pub column_range: Range<isize>,
     pub text: String,
     pub value: u32,
 }
@@ -9,28 +13,92 @@ pub struct DigitCapture {
 impl DigitCapture {
     fn is_adjacent(&self, (row, column): (isize, isize)) -> bool {
         let row_range = (self.row - 1)..(self.row + 2);
-        let column_range = (self.column_range.0 - 1)..(self.column_range.1 + 2);
+        let column_range = (self.column_range.start - 1)..(self.column_range.end + 1);
         row_range.contains(&row) && column_range.contains(&column)
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct SymbolCapture {
     pub row: usize,
     pub column: usize,
 }
 
+pub fn parse_numbers(input: &str) -> Vec<DigitCapture> {
+    let number_regex = Regex::new(r"(\d+)").expect("Wrong regex pattern");
+    input
+        .lines()
+        .enumerate()
+        .map(|(idx, line)| (idx, number_regex.captures_iter(line)))
+        .flat_map(|(row, captures)| {
+            captures.map(move |capture| {
+                let regex_match = capture.get(1).expect("No match");
+                let text = regex_match.as_str().to_string();
+                let column_range =
+                    (regex_match.range().start as isize)..(regex_match.range().end as isize);
+                let value = text.parse::<u32>().expect("Can't parse number");
+                DigitCapture {
+                    row: row as isize,
+                    column_range,
+                    text,
+                    value,
+                }
+            })
+        })
+        .collect()
+}
+
+pub fn parse_symbols(input: &str) -> Vec<SymbolCapture> {
+    let symbol_regex = Regex::new(r"([^\.\d\w\s])++").expect("Wrong regex pattern");
+
+    input
+        .lines()
+        .enumerate()
+        .map(|(idx, line)| (idx, symbol_regex.captures_iter(line)))
+        .flat_map(|(row, captures)| {
+            captures.map(move |capture| {
+                let regex_match = capture.get(1).expect("No match");
+                let column = regex_match.range().start;
+                SymbolCapture { row, column }
+            })
+        })
+        .collect()
+}
+
+pub fn answer() -> (i32, i32) {
+    let input = fs::read_to_string("puzzle3.txt").expect("File not found.");
+
+    // Get number locations with slices
+    let digit_captures: Vec<DigitCapture> = parse_numbers(&input);
+
+    // Get every symbol
+    let symbol_captures: Vec<SymbolCapture> = parse_symbols(&input);
+
+    let mut adjacent_numbers = HashSet::<&DigitCapture>::new();
+
+    for symbol in symbol_captures {
+        digit_captures
+            .iter()
+            .filter(|number| number.is_adjacent((symbol.row as isize, symbol.column as isize)))
+            .for_each(|number| {
+                adjacent_numbers.insert(number);
+            });
+    }
+
+    let answer: i32 = adjacent_numbers
+        .iter()
+        .fold(0, |acc, number| acc + &number.value) as i32;
+
+    (answer, 0)
+}
+
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
+    use std::ops::Range;
 
-    use regex::Regex;
+    use crate::puzzle3::{parse_numbers, parse_symbols, DigitCapture, SymbolCapture};
 
-    use crate::puzzle3::{DigitCapture, SymbolCapture};
-
-    #[test]
-    fn test_puzzle() {
-        let input = r#"467..114..
+    const TEST_INPUT: &str = r#"467..114..
 ...*......
 ..35..633.
 ......#...
@@ -40,69 +108,26 @@ mod tests {
 ......755.
 ...$.*....
 .664.598.."#;
-        dbg!(input);
 
-        // Get number locations with slices
-        let number_regex = Regex::new(r"(\d+)").unwrap();
-        let digit_captures: Vec<DigitCapture> = input
-            .lines()
-            .enumerate()
-            .map(|(idx, line)| (idx, number_regex.captures_iter(line)))
-            .flat_map(|(row, captures)| {
-                captures.map(move |capture| {
-                    let regex_match = capture.get(1).unwrap();
-                    let text = regex_match.as_str().to_string();
-                    let column_range = (
-                        regex_match.range().start as isize,
-                        regex_match.range().end as isize - 1,
-                    );
-                    let value = text.parse::<u32>().unwrap();
-                    DigitCapture {
-                        row: row as isize,
-                        column_range,
-                        text,
-                        value,
-                    }
+    #[test]
+    fn test_parse_numbers() {
+        let digit_captures: Vec<DigitCapture> = parse_numbers(TEST_INPUT);
+
+        assert!(
+            digit_captures.first()
+                == Some(&DigitCapture {
+                    row: 0,
+                    column_range: Range { start: 0, end: 3 },
+                    text: String::from("467"),
+                    value: 467
                 })
-            })
-            .collect();
+        );
+    }
 
-        dbg!(&digit_captures);
+    #[test]
+    fn test_parse_symbols() {
+        let symbol_capture: Vec<SymbolCapture> = parse_symbols(TEST_INPUT);
 
-        // Get every symbol
-        let symbol_regex = Regex::new(r"([^\.\d\w\s])++").unwrap();
-        let symbol_captures: Vec<SymbolCapture> = input
-            .lines()
-            .enumerate()
-            .map(|(idx, line)| (idx, symbol_regex.captures_iter(line)))
-            .flat_map(|(row, captures)| {
-                captures.map(move |capture| {
-                    let regex_match = capture.get(1).unwrap();
-                    let column = regex_match.range().start;
-                    SymbolCapture { row, column }
-                })
-            })
-            .collect();
-
-        dbg!(&symbol_captures);
-
-        let mut number_matches: HashSet<&DigitCapture> = HashSet::new();
-
-        for symbol in symbol_captures {
-            digit_captures
-                .iter()
-                .filter(|number| number.is_adjacent((symbol.row as isize, symbol.column as isize)))
-                .for_each(|number| {
-                    number_matches.insert(number);
-                });
-        }
-
-        dbg!(&number_matches);
-
-        let answer: u32 = number_matches
-            .iter()
-            .fold(0, |acc, number| acc + &number.value);
-
-        dbg!(answer);
+        assert!(symbol_capture.first() == Some(&SymbolCapture { row: 1, column: 3 }));
     }
 }
