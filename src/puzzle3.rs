@@ -18,10 +18,11 @@ impl DigitCapture {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SymbolCapture {
     pub row: usize,
     pub column: usize,
+    pub symbol: char,
 }
 
 pub fn parse_numbers(input: &str) -> Vec<DigitCapture> {
@@ -59,9 +60,47 @@ pub fn parse_symbols(input: &str) -> Vec<SymbolCapture> {
             captures.map(move |capture| {
                 let regex_match = capture.get(1).expect("No match");
                 let column = regex_match.range().start;
-                SymbolCapture { row, column }
+                let symbol = regex_match
+                    .as_str()
+                    .chars()
+                    .nth(0)
+                    .expect("Empty symbol string");
+                SymbolCapture {
+                    row,
+                    column,
+                    symbol,
+                }
             })
         })
+        .collect()
+}
+
+pub fn find_gears<'a>(
+    numbers: &'a Vec<DigitCapture>,
+    symbols: &'a Vec<SymbolCapture>,
+) -> Vec<&'a SymbolCapture> {
+    symbols
+        .iter()
+        .filter(|capture| {
+            capture.symbol == '*'
+                && numbers
+                    .iter()
+                    .filter(|number| {
+                        number.is_adjacent((capture.row as isize, capture.column as isize))
+                    })
+                    .count()
+                    == 2
+        })
+        .collect::<Vec<&'a SymbolCapture>>()
+}
+
+pub fn find_adjacents<'a>(
+    symbol: &'a SymbolCapture,
+    numbers: &'a Vec<DigitCapture>,
+) -> Vec<&'a DigitCapture> {
+    numbers
+        .iter()
+        .filter(|number| number.is_adjacent((symbol.row as isize, symbol.column as isize)))
         .collect()
 }
 
@@ -76,7 +115,7 @@ pub fn answer() -> (i32, i32) {
 
     let mut adjacent_numbers = HashSet::<&DigitCapture>::new();
 
-    for symbol in symbol_captures {
+    for symbol in &symbol_captures {
         digit_captures
             .iter()
             .filter(|number| number.is_adjacent((symbol.row as isize, symbol.column as isize)))
@@ -85,11 +124,27 @@ pub fn answer() -> (i32, i32) {
             });
     }
 
-    let answer: i32 = adjacent_numbers
+    let answer_part1: i32 = adjacent_numbers
         .iter()
         .fold(0, |acc, number| acc + &number.value) as i32;
 
-    (answer, 0)
+    ////////////////
+
+    let gears = find_gears(&digit_captures, &symbol_captures);
+    let mut adjacent_gear_numbers = HashSet::<&DigitCapture>::new();
+
+    gears.iter().for_each(|gear| {
+        digit_captures
+            .iter()
+            .filter(|number| number.is_adjacent((gear.row as isize, gear.column as isize)))
+            .for_each(|number| {
+                adjacent_gear_numbers.insert(number);
+            })
+    });
+
+    let answer_part2: i32 = 0;
+
+    (answer_part1, answer_part2)
 }
 
 #[cfg(test)]
@@ -128,6 +183,13 @@ mod tests {
     fn test_parse_symbols() {
         let symbol_capture: Vec<SymbolCapture> = parse_symbols(TEST_INPUT);
 
-        assert!(symbol_capture.first() == Some(&SymbolCapture { row: 1, column: 3 }));
+        assert!(
+            symbol_capture.first()
+                == Some(&SymbolCapture {
+                    row: 1,
+                    column: 3,
+                    symbol: '*'
+                })
+        );
     }
 }
