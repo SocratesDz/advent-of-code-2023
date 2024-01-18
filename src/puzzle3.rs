@@ -63,7 +63,7 @@ pub fn parse_symbols(input: &str) -> Vec<SymbolCapture> {
                 let symbol = regex_match
                     .as_str()
                     .chars()
-                    .nth(0)
+                    .next()
                     .expect("Empty symbol string");
                 SymbolCapture {
                     row,
@@ -76,8 +76,8 @@ pub fn parse_symbols(input: &str) -> Vec<SymbolCapture> {
 }
 
 pub fn find_gears<'a>(
-    numbers: &'a Vec<DigitCapture>,
-    symbols: &'a Vec<SymbolCapture>,
+    numbers: &'a [DigitCapture],
+    symbols: &'a [SymbolCapture],
 ) -> Vec<&'a SymbolCapture> {
     symbols
         .iter()
@@ -96,7 +96,7 @@ pub fn find_gears<'a>(
 
 pub fn find_adjacents<'a>(
     symbol: &'a SymbolCapture,
-    numbers: &'a Vec<DigitCapture>,
+    numbers: &'a [DigitCapture],
 ) -> Vec<&'a DigitCapture> {
     numbers
         .iter()
@@ -126,23 +126,23 @@ pub fn answer() -> (i32, i32) {
 
     let answer_part1: i32 = adjacent_numbers
         .iter()
-        .fold(0, |acc, number| acc + &number.value) as i32;
+        .fold(0, |acc, number| acc + number.value) as i32;
 
     ////////////////
 
     let gears = find_gears(&digit_captures, &symbol_captures);
-    let mut adjacent_gear_numbers = HashSet::<&DigitCapture>::new();
 
-    gears.iter().for_each(|gear| {
-        digit_captures
-            .iter()
-            .filter(|number| number.is_adjacent((gear.row as isize, gear.column as isize)))
-            .for_each(|number| {
-                adjacent_gear_numbers.insert(number);
-            })
-    });
+    let gear_ratios_sum: u32 = gears
+        .iter()
+        .map(|gear| {
+            find_adjacents(gear, &digit_captures)
+                .iter()
+                .map(|number| number.value)
+                .product::<u32>()
+        })
+        .sum();
 
-    let answer_part2: i32 = 0;
+    let answer_part2: i32 = gear_ratios_sum as i32;
 
     (answer_part1, answer_part2)
 }
