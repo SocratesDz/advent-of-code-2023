@@ -2,13 +2,14 @@ use std::fs;
 
 use regex::Regex;
 
+#[derive(Clone, Debug)]
 pub struct Scratchcard {
     pub id: u32,
     pub winning_numbers: Vec<u32>,
     pub owning_numbers: Vec<u32>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ScratchcardError(&'static str);
 
 impl Scratchcard {
@@ -134,6 +135,7 @@ Card 6: 31 18 13 56 72 | 74 77 10 23 35 67 36 11"#;
         assert!(answer == 13)
     }
 
+    #[test]
     fn test_puzzle_answer_part_2() {
         let puzzle_input = r#"Card 1: 41 48 83 86 17 | 83 86  6 31 17  9 48 53
 Card 2: 13 32 20 16 61 | 61 30 68 82 17 32 24 19
@@ -142,24 +144,50 @@ Card 4: 41 92 73 84 69 | 59 84 76 51 58  5 54 83
 Card 5: 87 83 26 28 32 | 88 30 70 12 93 22 82 36
 Card 6: 31 18 13 56 72 | 74 77 10 23 35 67 36 11"#;
 
-        let scratchcards = puzzle_input
+        let mut scratchcards = puzzle_input
             .lines()
             .map(Scratchcard::try_from)
             .collect::<Vec<Result<Scratchcard, ScratchcardError>>>();
 
         let mut card_count = 0;
-        for (idx, card) in scratchcards.iter().enumerate() {
+        let mut cards_idx: usize = 0;
+
+        while cards_idx < scratchcards.len() {
+            let Some(card) = scratchcards.get(cards_idx) else {
+                return;
+            };
             match card {
                 Ok(c) => {
                     let score = c.get_score();
+                    card_count += score + 1;
                     if score > 0 {
-                        let next_cards = &scratchcards[idx..(score as usize)];
+                        let mut cards = scratchcards.clone();
+                        let (before, after) = cards.split_at_mut(cards_idx);
+
+                        dbg!(&before);
+                        // dbg!(cards);
+                        dbg!(&after);
+
+                        dbg!(&score);
+                        dbg!(&cards_idx);
+                        dbg!(cards_idx + (score as usize));
+
+                        let mut next_cards = Vec::new();
+                        scratchcards[cards_idx..cards_idx + (score as usize)]
+                            .clone_into(&mut next_cards);
+                        let mut new_cards = before.to_vec();
+                        new_cards.append(&mut next_cards);
+                        new_cards.append(&mut after.to_vec());
+                        scratchcards = new_cards;
                     }
                 }
                 Err(_) => {
                     todo!("Handle error")
                 }
             }
+            cards_idx += 1;
         }
+
+        assert!(card_count == 30)
     }
 }
