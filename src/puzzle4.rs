@@ -1,3 +1,5 @@
+use std::fs;
+
 use regex::Regex;
 
 pub struct Scratchcard {
@@ -76,9 +78,34 @@ impl TryFrom<&str> for Scratchcard {
     }
 }
 
+pub fn answer() -> (i32, i32) {
+    let input = fs::read_to_string("puzzle4.txt").expect("Puzzle file not found.");
+
+    let scratchcards = input
+        .lines()
+        .map(Scratchcard::try_from)
+        .collect::<Vec<Result<Scratchcard, ScratchcardError>>>();
+
+    // Sum all scores of every scratchcard
+    let answer_part_1 = &scratchcards
+        .iter()
+        .map(|card| card.as_ref().map(|c| c.get_score()))
+        .fold(0, |acc, score| acc + score.unwrap_or(0));
+
+    // Sum all scores (plus one) of every winning scratchcard
+    let answer_part_2 = &scratchcards
+        .iter()
+        .map(|card| card.as_ref().map(|c| c.get_score() + 1))
+        .fold(0, |acc, card_count| acc + card_count.unwrap_or(0));
+
+    (*answer_part_1 as i32, *answer_part_2 as i32)
+}
+
 #[cfg(test)]
 mod tests {
     use crate::puzzle4::Scratchcard;
+
+    use super::ScratchcardError;
 
     #[test]
     fn test_parse_scorecard() {
@@ -87,5 +114,52 @@ mod tests {
         let scratchcard = Scratchcard::try_from(card_input);
 
         assert!(scratchcard.is_ok())
+    }
+
+    #[test]
+    fn test_puzzle_answer_part_1() {
+        let puzzle_input = r#"Card 1: 41 48 83 86 17 | 83 86  6 31 17  9 48 53
+Card 2: 13 32 20 16 61 | 61 30 68 82 17 32 24 19
+Card 3:  1 21 53 59 44 | 69 82 63 72 16 21 14  1
+Card 4: 41 92 73 84 69 | 59 84 76 51 58  5 54 83
+Card 5: 87 83 26 28 32 | 88 30 70 12 93 22 82 36
+Card 6: 31 18 13 56 72 | 74 77 10 23 35 67 36 11"#;
+
+        let answer = puzzle_input
+            .lines()
+            .map(Scratchcard::try_from)
+            .map(|card| card.map(|c| c.get_score()))
+            .fold(0, |acc, count| acc + count.unwrap_or(0));
+
+        assert!(answer == 13)
+    }
+
+    fn test_puzzle_answer_part_2() {
+        let puzzle_input = r#"Card 1: 41 48 83 86 17 | 83 86  6 31 17  9 48 53
+Card 2: 13 32 20 16 61 | 61 30 68 82 17 32 24 19
+Card 3:  1 21 53 59 44 | 69 82 63 72 16 21 14  1
+Card 4: 41 92 73 84 69 | 59 84 76 51 58  5 54 83
+Card 5: 87 83 26 28 32 | 88 30 70 12 93 22 82 36
+Card 6: 31 18 13 56 72 | 74 77 10 23 35 67 36 11"#;
+
+        let scratchcards = puzzle_input
+            .lines()
+            .map(Scratchcard::try_from)
+            .collect::<Vec<Result<Scratchcard, ScratchcardError>>>();
+
+        let mut card_count = 0;
+        for (idx, card) in scratchcards.iter().enumerate() {
+            match card {
+                Ok(c) => {
+                    let score = c.get_score();
+                    if score > 0 {
+                        let next_cards = &scratchcards[idx..(score as usize)];
+                    }
+                }
+                Err(_) => {
+                    todo!("Handle error")
+                }
+            }
+        }
     }
 }
