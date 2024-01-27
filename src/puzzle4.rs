@@ -31,17 +31,20 @@ impl Scratchcard {
     }
 
     pub fn get_score(&self) -> u32 {
-        let matched_numbers = self
-            .owning_numbers
-            .iter()
-            .filter(|picked| self.winning_numbers.contains(picked))
-            .count() as i32;
+        let matched_numbers = self.get_matching_count();
 
         if matched_numbers > 0 {
             2_u32.pow((matched_numbers - 1).try_into().unwrap())
         } else {
             0
         }
+    }
+
+    pub fn get_matching_count(&self) -> i32 {
+        self.owning_numbers
+            .iter()
+            .filter(|picked| self.winning_numbers.contains(picked))
+            .count() as i32
     }
 }
 
@@ -152,41 +155,40 @@ Card 6: 31 18 13 56 72 | 74 77 10 23 35 67 36 11"#;
         let mut card_count = 0;
         let mut cards_idx: usize = 0;
 
-        while cards_idx < scratchcards.len() {
-            let Some(card) = scratchcards.get(cards_idx) else {
-                return;
-            };
-            match card {
-                Ok(c) => {
-                    let score = c.get_score();
-                    card_count += score + 1;
-                    if score > 0 {
-                        let mut cards = scratchcards.clone();
-                        let (before, after) = cards.split_at_mut(cards_idx);
+        // while cards_idx < scratchcards.len() {
+        let Some(card) = scratchcards.get(cards_idx) else {
+            return;
+        };
+        match card {
+            Ok(c) => {
+                let matching_count = c.get_matching_count();
+                card_count += matching_count + 1;
+                if matching_count > 0 {
+                    let mut cards = scratchcards.clone();
+                    let (before, after) = cards.split_at_mut(cards_idx + 1);
 
-                        dbg!(&before);
-                        // dbg!(cards);
-                        dbg!(&after);
+                    dbg!(&before);
+                    // dbg!(cards);
+                    dbg!(&after);
 
-                        dbg!(&score);
-                        dbg!(&cards_idx);
-                        dbg!(cards_idx + (score as usize));
+                    dbg!(&matching_count);
+                    dbg!(&cards_idx);
+                    dbg!(cards_idx + (matching_count as usize));
 
-                        let mut next_cards = Vec::new();
-                        scratchcards[cards_idx..cards_idx + (score as usize)]
-                            .clone_into(&mut next_cards);
-                        let mut new_cards = before.to_vec();
-                        new_cards.append(&mut next_cards);
-                        new_cards.append(&mut after.to_vec());
-                        scratchcards = new_cards;
-                    }
-                }
-                Err(_) => {
-                    todo!("Handle error")
+                    let mut next_cards = Vec::new();
+                    after[0..(matching_count as usize)].clone_into(&mut next_cards);
+                    let mut new_cards = before.to_vec();
+                    new_cards.append(&mut next_cards);
+                    new_cards.append(&mut after.to_vec());
+                    scratchcards = new_cards;
                 }
             }
-            cards_idx += 1;
+            Err(_) => {
+                todo!("Handle error")
+            }
         }
+        cards_idx += 1;
+        // }
 
         assert!(card_count == 30)
     }
