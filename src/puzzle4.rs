@@ -107,9 +107,9 @@ pub fn answer() -> (i32, i32) {
 
 #[cfg(test)]
 mod tests {
-    use crate::puzzle4::Scratchcard;
+    use std::{collections::HashMap, ops::Index};
 
-    use super::ScratchcardError;
+    use crate::puzzle4::Scratchcard;
 
     #[test]
     fn test_parse_scorecard() {
@@ -147,49 +147,33 @@ Card 4: 41 92 73 84 69 | 59 84 76 51 58  5 54 83
 Card 5: 87 83 26 28 32 | 88 30 70 12 93 22 82 36
 Card 6: 31 18 13 56 72 | 74 77 10 23 35 67 36 11"#;
 
-        let mut scratchcards = puzzle_input
+        // Map of original scratchcards
+        let original_scratchcards = puzzle_input
             .lines()
             .map(Scratchcard::try_from)
-            .collect::<Vec<Result<Scratchcard, ScratchcardError>>>();
+            .map(|card| card.unwrap())
+            .collect::<Vec<Scratchcard>>();
 
-        let mut card_count = 0;
-        let mut cards_idx: usize = 0;
+        let mut card_indexes: Vec<usize> = original_scratchcards
+            .iter()
+            .enumerate()
+            .map(|(idx, _)| idx)
+            .collect();
 
-        // while cards_idx < scratchcards.len() {
-        let Some(card) = scratchcards.get(cards_idx) else {
-            return;
-        };
-        match card {
-            Ok(c) => {
-                let matching_count = c.get_matching_count();
-                card_count += matching_count + 1;
-                if matching_count > 0 {
-                    let mut cards = scratchcards.clone();
-                    let (before, after) = cards.split_at_mut(cards_idx + 1);
+        let mut card_index = 0;
 
-                    dbg!(&before);
-                    // dbg!(cards);
-                    dbg!(&after);
+        while card_index < card_indexes.len() {
+            let index = card_indexes[card_index];
+            let matching_count = original_scratchcards[index].get_matching_count();
 
-                    dbg!(&matching_count);
-                    dbg!(&cards_idx);
-                    dbg!(cards_idx + (matching_count as usize));
-
-                    let mut next_cards = Vec::new();
-                    after[0..(matching_count as usize)].clone_into(&mut next_cards);
-                    let mut new_cards = before.to_vec();
-                    new_cards.append(&mut next_cards);
-                    new_cards.append(&mut after.to_vec());
-                    scratchcards = new_cards;
+            if matching_count > 0 {
+                for i in (index + 1)..(index + matching_count as usize + 1) {
+                    card_indexes.push(i);
                 }
             }
-            Err(_) => {
-                todo!("Handle error")
-            }
+            card_index += 1
         }
-        cards_idx += 1;
-        // }
 
-        assert!(card_count == 30)
+        assert!(card_indexes.len() == 30);
     }
 }
