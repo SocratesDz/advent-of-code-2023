@@ -107,7 +107,6 @@ pub fn answer() -> (i32, i32) {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, ops::Index};
 
     use crate::puzzle4::Scratchcard;
 
