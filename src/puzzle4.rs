@@ -108,7 +108,7 @@ pub fn answer() -> (i32, i32) {
 #[cfg(test)]
 mod tests {
 
-    use crate::puzzle4::Scratchcard;
+    use crate::puzzle4::{Scratchcard, ScratchcardError};
 
     #[test]
     fn test_parse_scorecard() {
@@ -150,8 +150,7 @@ Card 6: 31 18 13 56 72 | 74 77 10 23 35 67 36 11"#;
         let original_scratchcards = puzzle_input
             .lines()
             .map(Scratchcard::try_from)
-            .map(|card| card.unwrap())
-            .collect::<Vec<Scratchcard>>();
+            .collect::<Vec<Result<Scratchcard, ScratchcardError>>>();
 
         let mut card_indexes: Vec<usize> = original_scratchcards
             .iter()
@@ -163,13 +162,15 @@ Card 6: 31 18 13 56 72 | 74 77 10 23 35 67 36 11"#;
 
         while card_index < card_indexes.len() {
             let index = card_indexes[card_index];
-            let matching_count = original_scratchcards[index].get_matching_count();
+            let card = original_scratchcards[index]
+                .as_ref()
+                .expect("Wrong scratchcard");
+            let matching_count = card.get_matching_count();
 
-            if matching_count > 0 {
-                for i in (index + 1)..(index + matching_count as usize + 1) {
-                    card_indexes.push(i);
-                }
+            for i in (index + 1)..=(index + matching_count as usize) {
+                card_indexes.push(i);
             }
+
             card_index += 1
         }
 
