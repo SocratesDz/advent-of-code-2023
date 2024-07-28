@@ -1,3 +1,5 @@
+use std::io::{self, BufRead};
+
 #[derive(Debug, PartialEq)]
 struct AlmanacMap(Vec<(u64, u64, u64)>);
 
@@ -16,15 +18,16 @@ impl AlmanacMap {
     }
 }
 
-impl TryFrom<&str> for AlmanacMap {
+// TODO: Implement TryFrom<T: BufRead> for AlmanacMap
+impl TryFrom<&Vec<String>> for AlmanacMap {
     type Error = &'static str;
 
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
+    fn try_from(value: &Vec<String>) -> Result<Self, Self::Error> {
         let mut triples = vec![];
-        for line in value.lines() {
+        for line in value {
             if line.chars().next().unwrap().is_ascii_digit() {
                 let nums: Vec<Result<u64, Self::Error>> = line
-                    .split(' ')
+                    .split_whitespace()
                     .map(|n| n.parse::<u64>().map_err(|_| "Can't parse map number"))
                     .collect();
                 triples.push((nums[0]?, nums[1]?, nums[2]?));
@@ -36,9 +39,29 @@ impl TryFrom<&str> for AlmanacMap {
     }
 }
 
+pub fn split_str_by_empty_lines(input: &str) -> Vec<Vec<String>> {
+    let mut final_vec: Vec<Vec<String>> = vec![];
+    let cursor = io::Cursor::new(input);
+    let mut current_vec: Vec<String> = vec![];
+    for line in cursor.lines().map(|l| l.unwrap()) {
+        if !line.chars().all(|c| c.is_ascii_whitespace()) {
+            current_vec.push(line);
+        } else {
+            final_vec.push(current_vec.clone());
+            current_vec.clear();
+        }
+    }
+    if !final_vec.is_empty() {
+        final_vec.push(current_vec.clone());
+    }
+    return final_vec;
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::puzzle5::AlmanacMap;
+    use std::io::{self, BufRead};
+
+    use crate::puzzle5::{split_str_by_empty_lines, AlmanacMap};
 
     #[test]
     fn test_puzzle_answer_part_1() {
@@ -132,8 +155,74 @@ humidity-to-location map:
             50 98 2\n\
             52 50 48";
 
-        let almanac_map = AlmanacMap::try_from(input).unwrap();
+        let almanac_map = AlmanacMap::try_from(
+            &input
+                .lines()
+                .map(|l| l.to_string())
+                .collect::<Vec<String>>(),
+        )
+        .unwrap();
 
         assert_eq!(almanac_map, AlmanacMap(vec![(52, 50, 48), (50, 98, 2)]));
+    }
+
+    #[test]
+    fn test_parse_set_of_maps() {
+        let input = "
+            seed-to-soil map:\n\
+            50 98 2\n\
+            52 50 48\n\
+            \n\
+            soil-to-fertilizer map:\n\
+            0 15 37\n\
+            37 52 2\n\
+            39 0 15";
+
+        let almanac_maps = split_str_by_empty_lines(input.trim())
+            .iter()
+            .map(|line| AlmanacMap::try_from(line))
+            .collect::<Result<Vec<AlmanacMap>, _>>()
+            .unwrap();
+
+        assert_eq!(
+            almanac_maps,
+            vec![
+                AlmanacMap(vec![(52, 50, 48), (50, 98, 2)]),
+                AlmanacMap(vec![(39, 0, 15), (0, 15, 37), (37, 52, 2)])
+            ]
+        )
+    }
+
+    #[test]
+    fn test_split_by_empty_lines() {
+        let input = "a\nb\nc\n\
+            \n\
+            x\ny\nz";
+
+        let output = split_str_by_empty_lines(input);
+
+        assert_eq!(output, vec![vec!["a", "b", "c"], vec!["x", "y", "z"]])
+    }
+
+    #[test]
+    fn test_multiple_map_processing() {
+        let seed = 79;
+        let input = "
+            seed-to-soil map:\n\
+            50 98 2\n\
+            52 50 48\n\
+            \n\
+            soil-to-fertilizer map:\n\
+            0 15 37\n\
+            37 52 2\n\
+            39 0 15";
+
+        let almanac_map_seed_to_soil_processing = split_str_by_empty_lines(input.trim())
+            .iter()
+            .map(|line| AlmanacMap::try_from(line))
+            .flatten()
+            .fold(seed, |acc, map| map.process_map(acc));
+
+        assert_eq!(almanac_map_seed_to_soil_processing, 81)
     }
 }
