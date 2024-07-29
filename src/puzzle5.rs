@@ -57,11 +57,24 @@ pub fn split_str_by_empty_lines(input: &str) -> Vec<Vec<String>> {
     return final_vec;
 }
 
+pub fn parse_seeds_from_str(input: &str) -> Option<Vec<u64>> {
+    if let Some((_, numbers_str)) = input.split_once("seeds: ") {
+        Some(
+            numbers_str
+                .split_whitespace()
+                .into_iter()
+                .map(|n| n.parse::<u64>().unwrap())
+                .collect(),
+        )
+    } else {
+        None
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use std::io::{self, BufRead};
 
-    use crate::puzzle5::{split_str_by_empty_lines, AlmanacMap};
+    use crate::puzzle5::{parse_seeds_from_str, split_str_by_empty_lines, AlmanacMap};
 
     #[test]
     fn test_puzzle_answer_part_1() {
@@ -135,6 +148,21 @@ humidity-to-location map:
         //   corresponding to the map, or the value itself otherwise.
         // 6 - Make a function that does the above with a single seed and a vec of truples coming
         //   from an AlmanacMap enum.
+
+        let input_lines = split_str_by_empty_lines(puzzle_input);
+        let seeds = parse_seeds_from_str(&input_lines[0][0]);
+        let almanac_maps = input_lines[1..]
+            .iter()
+            .map(|line| AlmanacMap::try_from(line).unwrap())
+            .collect::<Vec<AlmanacMap>>();
+
+        let output = seeds.unwrap().iter().map(|seed| {
+            almanac_maps
+                .iter()
+                .fold(seed, |acc, map| map.process_map(*acc).clone())
+        });
+
+        // .fold(seed, |acc, map| map.process_map(acc));
     }
 
     #[test]
@@ -224,5 +252,13 @@ humidity-to-location map:
             .fold(seed, |acc, map| map.process_map(acc));
 
         assert_eq!(almanac_map_seed_to_soil_processing, 81)
+    }
+
+    #[test]
+    fn test_parse_seeds_input() {
+        let input = "seeds: 79 14 55 13";
+        let output: Vec<u64> = parse_seeds_from_str(input).unwrap();
+
+        assert_eq!(output, vec![79, 14, 55, 13]);
     }
 }
