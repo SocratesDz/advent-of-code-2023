@@ -1,4 +1,8 @@
-use std::io::{self, BufRead};
+use std::{
+    fs,
+    io::{self, BufRead},
+    ops::Range,
+};
 
 #[derive(Debug, PartialEq)]
 struct AlmanacMap(Vec<(u64, u64, u64)>);
@@ -71,10 +75,78 @@ pub fn parse_seeds_from_str(input: &str) -> Option<Vec<u64>> {
     }
 }
 
+pub fn parse_seed_range_from_str(input: &str) -> Option<Vec<Range<u64>>> {
+    if let Some(numbers) = parse_seeds_from_str(input) {
+        let mut pairs: Vec<(u64, u64)> = vec![];
+        for i in 0..(numbers.len() / 2) {
+            pairs.push((numbers[i * 2], numbers[(i * 2) + 1]));
+        }
+        Some(
+            pairs
+                .iter()
+                .map(|(start, length)| start.clone()..(start + length).clone())
+                .collect::<Vec<Range<u64>>>(),
+        )
+    } else {
+        None
+    }
+}
+
+pub fn answer_part_1(input: &str) -> u64 {
+    let input_lines = split_str_by_empty_lines(input);
+    let seeds = parse_seeds_from_str(&input_lines[0][0]);
+    let almanac_maps = input_lines[1..]
+        .iter()
+        .map(|line| AlmanacMap::try_from(line).unwrap())
+        .collect::<Vec<AlmanacMap>>();
+
+    seeds
+        .unwrap()
+        .iter()
+        .map(|seed| {
+            almanac_maps
+                .iter()
+                .fold(seed.clone(), |acc, map| map.process_map(acc))
+        })
+        .min()
+        .unwrap()
+}
+
+pub fn answer_part_2(input: &str) -> u64 {
+    let input_lines = split_str_by_empty_lines(input);
+    let seed_ranges = parse_seed_range_from_str(&input_lines[0][0]);
+    let almanac_maps = input_lines[1..]
+        .iter()
+        .map(|line| AlmanacMap::try_from(line).unwrap())
+        .collect::<Vec<AlmanacMap>>();
+
+    seed_ranges
+        .unwrap()
+        .iter()
+        .flat_map(|range| {
+            range.clone().map(|seed| {
+                almanac_maps
+                    .iter()
+                    .fold(seed.clone(), |acc, map| map.process_map(acc))
+            })
+        })
+        .min()
+        .unwrap()
+}
+
+pub fn answer() -> (u64, u64) {
+    let input = fs::read_to_string("puzzle5.txt").expect("Puzzle file not found.");
+
+    (answer_part_1(input.as_str()), answer_part_2(input.as_str()))
+}
+
 #[cfg(test)]
 mod tests {
 
-    use crate::puzzle5::{parse_seeds_from_str, split_str_by_empty_lines, AlmanacMap};
+    use crate::puzzle5::{
+        answer_part_1, answer_part_2, parse_seed_range_from_str, parse_seeds_from_str,
+        split_str_by_empty_lines, AlmanacMap,
+    };
 
     #[test]
     fn test_puzzle_answer_part_1() {
@@ -149,20 +221,13 @@ humidity-to-location map:
         // 6 - Make a function that does the above with a single seed and a vec of truples coming
         //   from an AlmanacMap enum.
 
-        let input_lines = split_str_by_empty_lines(puzzle_input);
-        let seeds = parse_seeds_from_str(&input_lines[0][0]);
-        let almanac_maps = input_lines[1..]
-            .iter()
-            .map(|line| AlmanacMap::try_from(line).unwrap())
-            .collect::<Vec<AlmanacMap>>();
+        let output_part_1 = answer_part_1(&puzzle_input);
 
-        let output = seeds.unwrap().iter().map(|seed| {
-            almanac_maps
-                .iter()
-                .fold(seed, |acc, map| map.process_map(*acc).clone())
-        });
+        assert_eq!(output_part_1, 35);
 
-        // .fold(seed, |acc, map| map.process_map(acc));
+        let output_part_2 = answer_part_2(&puzzle_input);
+
+        assert_eq!(output_part_2, 46)
     }
 
     #[test]
@@ -260,5 +325,13 @@ humidity-to-location map:
         let output: Vec<u64> = parse_seeds_from_str(input).unwrap();
 
         assert_eq!(output, vec![79, 14, 55, 13]);
+    }
+
+    #[test]
+    fn test_parse_seeds_range_input() {
+        let input = "seeds: 79 14 55 13";
+        let output = parse_seed_range_from_str(input).unwrap();
+
+        assert_eq!(output, vec![79u64..93u64, 55u64..68u64]);
     }
 }

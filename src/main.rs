@@ -19,4 +19,8 @@ fn main() {
     let (answer4_1, answer4_2) = puzzle4::answer();
     println!("Answer to puzzle #4 (Part one): {answer4_1}");
     println!("Answer to puzzle #4 (Part two): {answer4_2}");
+
+    let (answer5_1, answer5_2) = puzzle5::answer();
+    println!("Answer to puzzle #5 (Part one): {answer5_1}");
+    println!("Answer to puzzle #5 (Part two): {answer5_2}");
 }
