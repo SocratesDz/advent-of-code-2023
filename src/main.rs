@@ -3,6 +3,7 @@ mod puzzle2;
 mod puzzle3;
 mod puzzle4;
 mod puzzle5;
+mod puzzle6;
 
 fn main() {
     let answer1 = puzzle1::answer();
@@ -23,4 +24,7 @@ fn main() {
     let (answer5_1, answer5_2) = puzzle5::answer();
     println!("Answer to puzzle #5 (Part one): {answer5_1}");
     println!("Answer to puzzle #5 (Part two): {answer5_2}");
+
+    let (answer6_1, _) = puzzle6::answer();
+    println!("Answer to puzzle #6 (Part one): {answer6_1}");
 }
