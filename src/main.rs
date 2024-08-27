@@ -25,6 +25,7 @@ fn main() {
     println!("Answer to puzzle #5 (Part one): {answer5_1}");
     println!("Answer to puzzle #5 (Part two): {answer5_2}");
 
-    let (answer6_1, _) = puzzle6::answer();
+    let (answer6_1, answer6_2) = puzzle6::answer();
     println!("Answer to puzzle #6 (Part one): {answer6_1}");
+    println!("Answer to puzzle #6 (Part two): {answer6_2}");
 }

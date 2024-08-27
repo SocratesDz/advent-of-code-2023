@@ -20,61 +20,104 @@ pub fn parse_input(input: &str) -> Vec<Record> {
         .map(|records| Record {
             time: records
                 .0
-                .parse::<u32>()
+                .parse::<u64>()
                 .expect("Error while parsing time records"),
             distance: records
                 .1
-                .parse::<u32>()
-                .expect("Error while parsing time records"),
+                .parse::<u64>()
+                .expect("Error while parsing distance records"),
         })
         .collect()
 }
 
-#[derive(Debug, PartialEq)]
-pub struct Record {
-    pub time: u32,
-    pub distance: u32,
-}
-
-impl Record {
-    pub fn speed(&self) -> f32 {
-        if self.time == 0 {
-            return 0.0;
-        }
-        self.distance as f32 / self.time as f32
+pub fn parse_input_with_transform(input: &str) -> Record {
+    let mut lines = input.lines().into_iter();
+    let time_records = lines
+        .next()
+        .map(|l| l.split_once(":"))
+        .flatten()
+        .map(|t| t.1.replace(" ", ""))
+        .expect("Error while parsing time records");
+    let distance_records = lines
+        .next()
+        .map(|l| l.split_once(":"))
+        .flatten()
+        .map(|t| t.1.replace(" ", ""))
+        .expect("Error while parsing distance records");
+    Record {
+        time: time_records
+            .parse::<u64>()
+            .expect("Error while parsing time records"),
+        distance: distance_records
+            .parse::<u64>()
+            .expect("Error while parsing distance records"),
     }
 }
 
-pub fn answer_part_1(input: &str) -> u32 {
+#[derive(Debug, PartialEq)]
+pub struct Record {
+    pub time: u64,
+    pub distance: u64,
+}
+
+impl Record {
+    pub fn speed(&self) -> f64 {
+        if self.time == 0 {
+            return 0.0;
+        }
+        (self.distance / self.time) as f64
+    }
+}
+
+pub fn answer_part_1(input: &str) -> u64 {
     let records = parse_input(input);
     let speed_values = records
         .iter()
         .map(|record| {
-            let speed = if record.speed() == record.speed().ceil() as f32 {
+            let speed = if record.speed() == record.speed().ceil() as f64 {
                 record.speed() + 1.0
             } else {
                 record.speed().ceil()
-            } as u32;
+            } as u64;
             let initial_speed = (speed..)
                 .find(|s| s * (record.time - s) > record.distance)
                 .expect("Can't calculate optimal speed.");
             let speeds = (initial_speed..)
                 .take_while(|s| s * (record.time - s) > record.distance)
                 .collect::<Vec<_>>();
-            speeds.len() as u32
+            speeds.len() as u64
         })
-        .collect::<Vec<u32>>();
+        .collect::<Vec<u64>>();
     speed_values.iter().product()
 }
 
-pub fn answer() -> (u32, u32) {
+pub fn answer_part_2(input: &str) -> u64 {
+    let record = parse_input_with_transform(input);
+
+    let speed = if record.speed() == record.speed().ceil() {
+        record.speed() + 1.0
+    } else {
+        record.speed().ceil()
+    } as u64;
+
+    let initial_speed = (speed..)
+        .find(|s| s * (record.time - s) > record.distance)
+        .expect("Can't calculate optimal speed.");
+    let speeds = (initial_speed..)
+        .take_while(|s| s * (record.time - s) > record.distance)
+        .collect::<Vec<_>>();
+
+    speeds.len() as u64
+}
+
+pub fn answer() -> (u64, u64) {
     let input = fs::read_to_string("puzzle6.txt").expect("Puzzle file not found.");
-    (answer_part_1(input.as_str()), 0)
+    (answer_part_1(input.as_str()), answer_part_2(input.as_str()))
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::puzzle6::{answer_part_1, parse_input, Record};
+    use crate::puzzle6::{answer_part_1, answer_part_2, parse_input, Record};
 
     #[test]
     fn test_puzzle_answer_part_1() {
@@ -103,8 +146,15 @@ mod tests {
         //   - let result = speed_values.length()
         // 4. Multiply them.
         //   - results.product()
-        let result: u32 = answer_part_1(puzzle_input);
+        let result: u64 = answer_part_1(puzzle_input);
         assert_eq!(result, 288);
+    }
+
+    #[test]
+    fn test_answer_part_2() {
+        let puzzle_input = "Time:      7  15   30\nDistance:  9  40  200";
+        let result: u64 = answer_part_2(puzzle_input);
+        assert_eq!(result, 71503);
     }
 
     #[test]
@@ -136,5 +186,28 @@ mod tests {
                 }
             ]
         );
+    }
+
+    #[test]
+    fn test_transform_parsed_puzzle_input() {
+        let input = "Time:      7  15   30\nDistance:  9  40  200";
+        let mut lines = input.lines();
+
+        let time_records = lines
+            .next()
+            .map(|l| l.split_once(" "))
+            .flatten()
+            .map(|t| (t.0, t.1.replace(" ", "")))
+            .map(|(title, value)| format!("{title} {value}"))
+            .expect("Error while parsing time records");
+        let distance_records = lines
+            .next()
+            .map(|l| l.split_once(" "))
+            .flatten()
+            .map(|t| (t.0, t.1.replace(" ", "")))
+            .map(|(title, value)| format!("{title} {value}"))
+            .expect("Error while parsing distance records");
+        let parsed_input = format!("{}\n{}", time_records, distance_records);
+        assert_eq!(parsed_input, "Time: 71530\nDistance: 940200");
     }
 }
